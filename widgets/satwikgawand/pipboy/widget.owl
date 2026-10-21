@@ -4,8 +4,8 @@ widget "pipboy" {
   size: 3x4
   minSize: 3x3
   meta {
-    description: "Pip-Boy style system readout: green or amber phosphor, CRT scanlines, segmented gauges and STAT/INV/DATA tabs, with or without Linux"
-    version: "1.0"
+    description: "Pip-Boy style system readout: classic and theme-colored phosphor, CRT scanlines, segmented gauges and STAT/INV/DATA tabs, with or without Linux"
+    version: "1.1"
     license: "MIT"
     category: "system"
     owl: 5
@@ -26,16 +26,19 @@ widget "pipboy" {
   """) every 5m json optional
 
   state phosphor = "green" persist
+  state textScale = 1 persist
   state tab = "stat"
 
-  // Phosphor palette: classic green, or amber CRT.
+  // Classic CRT palettes and colors that follow the active launcher theme.
+  let themed = phosphor != "green" && phosphor != "amber"
+  let themeInk = phosphor == "red" ? red : phosphor == "yellow" ? yellow : phosphor == "blue" ? blue : phosphor == "magenta" ? magenta : phosphor == "cyan" ? cyan : phosphor == "orange" ? orange : phosphor == "theme-green" ? green : accent
   let amber = phosphor == "amber"
-  let hi = amber ? "#ffd27f" : "#c8ffd9"
-  let main = amber ? "#ffb03b" : "#39ff88"
-  let dim = amber ? "#c9871a" : "#2fae62"
-  let edge = amber ? "#7a4d08" : "#1a6b3c"
-  let panel = amber ? "#221503" : "#0a1c10"
-  let bg = amber ? "#120b01" : "#061009"
+  let hi = themed ? foreground : amber ? "#ffd27f" : "#c8ffd9"
+  let main = themed ? themeInk : amber ? "#ffb03b" : "#39ff88"
+  let dim = themed ? mix(background, themeInk, 0.75) : amber ? "#c9871a" : "#2fae62"
+  let edge = themed ? mix(background, themeInk, 0.4) : amber ? "#7a4d08" : "#1a6b3c"
+  let panel = themed ? mix(background, themeInk, 0.1) : amber ? "#221503" : "#0a1c10"
+  let bg = themed ? background : amber ? "#120b01" : "#061009"
   let alarm = "#ff5555"
   let caution = "#ffd166"
 
@@ -64,7 +67,7 @@ widget "pipboy" {
     Column {
       gap: size * 0.35
       fill: width
-      Text { text: "[ ${upper(label)} ]"; fontSize: size; font: mono; bold: true; color: main; maxLines: 1 }
+      Text { text: "[ ${upper(label)} ]"; fontSize: (size) * textScale; font: mono; bold: true; color: main; maxLines: 1 }
       Spacer { height: max(size * 0.12, 1); fill: width; background: edge }
     }
   }
@@ -72,8 +75,8 @@ widget "pipboy" {
   component Line(key, value, keyW = 110, size = 10) {
     Row {
       gap: size * 0.6
-      Text { text: key; fontSize: size; font: mono; color: dim; width: keyW; maxLines: 1 }
-      Text { text: value; fontSize: size; font: mono; color: hi; maxLines: 1; weight: 1 }
+      Text { text: key; fontSize: (size) * textScale; font: mono; color: dim; width: keyW * textScale; maxLines: 1 }
+      Text { text: value; fontSize: (size) * textScale; font: mono; color: hi; maxLines: 1; weight: 1 }
     }
   }
 
@@ -81,7 +84,7 @@ widget "pipboy" {
     Row {
       gap: size * 0.6
       align: center
-      Text { text: label; fontSize: size; font: mono; color: dim; width: keyW; maxLines: 1 }
+      Text { text: label; fontSize: (size) * textScale; font: mono; color: dim; width: keyW * textScale; maxLines: 1 }
       Canvas {
         height: size * 1.2
         weight: 1
@@ -92,14 +95,14 @@ widget "pipboy" {
           rect(i * w + 1, 1, w - 2, height - 2, fill: i < on ? tint : alpha(main, 0.16))
         }
       }
-      Text { text: pct == null ? "…" : "${round(pct)}%"; fontSize: size; font: mono; color: tint; width: size * 2.8; align: end; maxLines: 1 }
+      Text { text: pct == null ? "…" : "${round(pct)}%"; fontSize: (size) * textScale; font: mono; color: tint; width: size * 2.8 * textScale; align: end; maxLines: 1 }
     }
   }
 
   component Tab(name, label, size = 11) {
     Text {
       text: label
-      fontSize: size
+      fontSize: (size) * textScale
       font: mono
       bold: true
       color: tab == name ? bg : dim
@@ -137,10 +140,10 @@ widget "pipboy" {
     }
   }
 
-  component Phosphor(size = 10, chipW = 64) {
+  component Phosphor(size = 10, chipW = 76) {
     Text {
-      text: amber ? "AMBER" : "GREEN"
-      fontSize: size
+      text: phosphor == "theme-green" ? "T.GREEN" : upper(phosphor)
+      fontSize: (size) * textScale
       font: mono
       bold: true
       color: bg
@@ -149,10 +152,10 @@ widget "pipboy" {
       borderColor: edge
       radius: 3
       padding: [size * 0.55, size * 0.3]
-      width: chipW
+      width: chipW * textScale
       align: center
       maxLines: 1
-      onTap: phosphor = amber ? "green" : "amber"
+      onTap: phosphor = phosphor == "green" ? "amber" : phosphor == "amber" ? "accent" : phosphor == "accent" ? "red" : phosphor == "red" ? "yellow" : phosphor == "yellow" ? "blue" : phosphor == "blue" ? "magenta" : phosphor == "magenta" ? "cyan" : phosphor == "cyan" ? "orange" : phosphor == "orange" ? "theme-green" : "green"
     }
   }
 
@@ -174,7 +177,7 @@ widget "pipboy" {
       } else {
         Line { key: "display"; value: shown.width == null ? null : "${shown.width}x${shown.height} @ ${shown.hz}Hz"; keyW: keyW; size: size }
       }
-      Text { text: "RADS 0 RAD · CONDITION NOMINAL · WELCOME BACK, ${upper(user)}"; fontSize: size; font: mono; color: dim; maxLines: 1 }
+      Text { text: "RADS 0 RAD · CONDITION NOMINAL · WELCOME BACK, ${upper(user)}"; fontSize: (size) * textScale; font: mono; color: dim; maxLines: 1 }
     } else if tab == "inv" {
       Head { label: "hardware"; size: size }
       Line { key: "host"; value: dev == null ? null : "${dev.maker} ${dev.model} (${sys.codename})"; keyW: keyW; size: size }
@@ -212,12 +215,12 @@ widget "pipboy" {
         Line { key: "shell"; value: lx.shell; keyW: keyW; size: size }
         Line { key: "upgraded"; value: lx.upgraded == "" ? "never" : lx.upgraded; keyW: keyW; size: size }
       } else {
-        Text { text: "NOT INSTALLED. ARCH LINUX ARM ADDS A TERMINAL, AGENTS AND PACMAN TO THE LAUNCHER."; fontSize: size; font: mono; color: dim; maxLines: 2 }
+        Text { text: "NOT INSTALLED. ARCH LINUX ARM ADDS A TERMINAL, AGENTS AND PACMAN TO THE LAUNCHER."; fontSize: (size) * textScale; font: mono; color: dim; maxLines: 2 }
         Row {
           justify: end
           Text {
             text: "INSTALL LINUX"
-            fontSize: size
+            fontSize: (size) * textScale
             font: mono
             bold: true
             color: bg
@@ -280,8 +283,8 @@ widget "pipboy" {
         gap: 4 * t
         align: center
         Icon { w: 7 * t; h: 8 * t }
-        Text { text: "${user}@${host}"; fontSize: 5.5 * t; font: mono; bold: true; color: hi; maxLines: 1; weight: 1 }
-        Phosphor { size: 5.5 * t; chipW: 26 * t }
+        Text { text: "${user}@${host}"; fontSize: (5.5 * t) * textScale; font: mono; bold: true; color: hi; maxLines: 1; weight: 1 }
+        Phosphor { size: 5.5 * t; chipW: 34 * t }
       }
       Tabs { size: 7 * t }
       Column {
@@ -294,7 +297,7 @@ widget "pipboy" {
       Row {
         gap: 4 * t
         align: center
-        Text { text: "TAP FOR FULL READOUT"; fontSize: 5 * t; font: mono; color: dim; maxLines: 1; weight: 1 }
+        Text { text: "TAP FOR FULL READOUT"; fontSize: (5 * t) * textScale; font: mono; color: dim; maxLines: 1; weight: 1 }
         Cursor { k: t }
       }
     }
@@ -320,18 +323,23 @@ widget "pipboy" {
           Column {
             gap: 2
             weight: 1
-            Text { text: "ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM"; fontSize: 7; font: mono; color: dim; maxLines: 1 }
-            Text { text: "PIP-BOY 3000"; fontSize: 18; font: mono; bold: true; color: hi; maxLines: 1 }
-            Text { text: "${user}@${host}"; fontSize: 9; font: mono; color: dim; maxLines: 1 }
+            Text { text: "ROBCO INDUSTRIES UNIFIED OPERATING SYSTEM"; fontSize: (7) * textScale; font: mono; color: dim; maxLines: 1 }
+            Text { text: "PIP-BOY 3000"; fontSize: (18) * textScale; font: mono; bold: true; color: hi; maxLines: 1 }
+            Text { text: "${user}@${host}"; fontSize: (9) * textScale; font: mono; color: dim; maxLines: 1 }
           }
           Column {
             gap: 2
             align: end
-            Text { text: "PHOSPHOR"; fontSize: 7; font: mono; color: dim; width: 64; align: end; maxLines: 1 }
+            Text { text: "PHOSPHOR"; fontSize: (7) * textScale; font: mono; color: dim; width: 64; align: end; maxLines: 1 }
             Phosphor { }
           }
         }
 
+        Row {
+          fill: width
+          Text { text: "TEXT SIZE"; fontSize: 10; font: mono; color: dim; weight: 1 }
+          Text { text: "[ ${round(textScale * 100)}% ]"; fontSize: 12; font: mono; color: main; border: 1; borderColor: edge; padding: [12, 8]; width: 100; align: center; onTap: textScale = textScale < 1.25 ? 1.25 : textScale < 1.5 ? 1.5 : 1 }
+        }
         Tabs { }
 
         Column {
@@ -345,11 +353,11 @@ widget "pipboy" {
         Row {
           gap: 6
           align: center
-          Text { text: "CRT ON"; fontSize: 8; font: mono; color: dim; maxLines: 1; weight: 1 }
+          Text { text: "CRT ON"; fontSize: (8) * textScale; font: mono; color: dim; maxLines: 1; weight: 1 }
           Cursor { }
           Text {
             text: "[ CLOSE ]"
-            fontSize: 9
+            fontSize: (9) * textScale
             font: mono
             bold: true
             color: main
